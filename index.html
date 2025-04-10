@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân Tích Tài Xỉu MD5</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 16px;
+            color: #333;
+            background-color: #f5f5f5;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #0088cc;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        button {
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 20px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #006699;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border: 1px solid #eee;
+        }
+        .tai {
+            color: #155724;
+            font-weight: bold;
+        }
+        .xiu {
+            color: #721c24;
+            font-weight: bold;
+        }
+        .detail-box {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border: 1px solid #eee;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .history {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .hex-highlight {
+            background-color: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Phân Tích Tài Xỉu MD5</h1>
+        
+        <div class="input-group">
+            <label for="md5Input">Nhập mã MD5 (32 ký tự hex):</label>
+            <input type="text" id="md5Input" placeholder="Ví dụ: 5f4dcc3b5aa765d61d8327deb882cf99" maxlength="32">
+        </div>
+        
+        <button id="analyzeBtn">Phân Tích</button>
+        
+        <div id="resultBox" class="result" style="display: none;"></div>
+        
+        <div class="history">
+            <h3>Lịch sử phân tích</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Khởi tạo Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // Thiết lập nút chính
+        tg.MainButton.setParams({
+            text: 'Đóng',
+            color: '#008CBA'
+        });
+        
+        tg.MainButton.onClick(() => {
+            tg.close();
+        });
+        
+        // Khởi tạo lịch sử
+        let history = JSON.parse(localStorage.getItem('md5TaiXiuHistory')) || [];
+        
+        // Cập nhật hiển thị lịch sử
+        function updateHistory() {
+            const historyList = $('#historyList');
+            historyList.empty();
+            
+            history.slice(0, 10).forEach(item => {
+                const resultClass = item.result === 'Tài' ? 'tai' : 'xiu';
+                historyList.append(`
+                    <div class="history-item">
+                        <div>MD5: ${item.md5.substring(0, 8)}...${item.md5.substring(24)}</div>
+                        <div>Kết quả: <span class="${resultClass}">${item.result} (${item.total})</span></div>
+                    </div>
+                `);
+            });
+            
+            localStorage.setItem('md5TaiXiuHistory', JSON.stringify(history));
+        }
+        
+        // Kiểm tra tính hợp lệ của mã MD5
+        function isValidMD5(md5) {
+            const md5Regex = /^[a-fA-F0-9]{32}$/;
+            return md5Regex.test(md5);
+        }
+        
+        // Phân tích MD5 để tính kết quả tài xỉu
+        function analyzeMD5(md5) {
+            // Lấy 3 ký tự hex cuối từ mã MD5
+            const lastThreeHexChars = md5.slice(-3);
+            
+            // Chuyển đổi thành số nguyên theo hệ 16
+            const decimalValue = parseInt(lastThreeHexChars, 16);
+            
+            // Tính giá trị cho 3 xúc xắc
+            const dice1 = (Math.floor(decimalValue / 256) % 6) + 1;
+            const dice2 = (Math.floor(decimalValue / 16) % 6) + 1;
+            const dice3 = (decimalValue % 6) + 1;
+            
+            const total = dice1 + dice2 + dice3;
+            const isTai = total >= 11 && total <= 18;
+            
+            return {
+                total: total,
+                dice: [dice1, dice2, dice3],
+                result: isTai ? 'Tài' : 'Xỉu',
+                lastThreeHex: lastThreeHexChars,
+                decimalValue: decimalValue
+            };
+        }
+        
+        // Xử lý khi nhấn nút phân tích
+        $('#analyzeBtn').click(function() {
+            const md5 = $('#md5Input').val().trim().toLowerCase();
+            
+            // Kiểm tra tính hợp lệ của MD5
+            if (!isValidMD5(md5)) {
+                $('#resultBox').html(`
+                    <div class="error">
+                        Mã MD5 không hợp lệ! Vui lòng nhập đúng 32 ký tự hex (0-9, a-f).
+                    </div>
+                `).show();
+                return;
+            }
+            
+            // Phân tích MD5
+            const analysis = analyzeMD5(md5);
+            
+            // Hiển thị kết quả
+            const resultClass = analysis.result === 'Tài' ? 'tai' : 'xiu';
+            $('#resultBox').html(`
+                <h3>Kết quả phân tích:</h3>
+                <p>MD5: ${md5}</p>
+                <p>3 ký tự hex cuối: <span class="hex-highlight">${analysis.lastThreeHex}</span> (Decimal: ${analysis.decimalValue})</p>
+                <p>Giá trị xúc xắc: ${analysis.dice.join(' + ')} = ${analysis.total}</p>
+                <p>Kết quả: <span class="${resultClass}">${analysis.result} (${analysis.total})</span></p>
+                
+                <div class="detail-box">
+                    <h4>Chi tiết tính toán:</h4>
+                    <p>Decimal value từ 3 ký tự hex cuối: ${analysis.decimalValue}</p>
+                    <p>Xúc xắc 1: (${analysis.decimalValue} / 256) % 6 + 1 = ${analysis.dice[0]}</p>
+                    <p>Xúc xắc 2: (${analysis.decimalValue} / 16) % 6 + 1 = ${analysis.dice[1]}</p>
+                    <p>Xúc xắc 3: ${analysis.decimalValue} % 6 + 1 = ${analysis.dice[2]}</p>
+                    <p>Tổng điểm: ${analysis.total} → ${analysis.result}</p>
+                </div>
+                
+                <table>
+                    <tr>
+                        <th>Tài (11-18)</th>
+                        <th>Xỉu (3-10)</th>
+                    </tr>
+                    <tr>
+                        <td>${analysis.result === 'Tài' ? '✓' : ''}</td>
+                        <td>${analysis.result === 'Xỉu' ? '✓' : ''}</td>
+                    </tr>
+                </table>
+            `).show();
+            
+            // Lưu vào lịch sử
+            history.unshift({
+                md5: md5,
+                result: analysis.result,
+                total: analysis.total,
+                timestamp: new Date().toISOString()
+            });
+            
+            if (history.length > 50) {
+                history.pop();
+            }
+            
+            updateHistory();
+        });
+        
+        // Cập nhật lịch sử khi tải trang
+        updateHistory();
+    </script>
+</body>
+</html>
